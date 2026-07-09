@@ -166,3 +166,56 @@ body {
 #recommendation-output li {
   margin-bottom: 4px;
 }
+
+#save-favorite-btn {
+  margin-top: 12px;
+}
+
+.favorites-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.favorite-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fafbfe;
+}
+
+.favorite-item__body {
+  font-size: 0.9rem;
+}
+
+.favorite-item__body ul {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.favorite-item__meta {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  margin-top: 6px;
+}
+
+.favorite-item__delete {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--color-error);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px 6px;
+}
+
+.favorite-item__delete:hover {
+  text-decoration: underline;
+}

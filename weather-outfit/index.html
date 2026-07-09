@@ -79,6 +79,15 @@
     <section class="card card--result" id="recommendation-section" hidden aria-labelledby="result-heading">
       <h2 id="result-heading">おすすめの服装</h2>
       <div id="recommendation-output"></div>
+      <button type="button" id="save-favorite-btn" class="btn">お気に入りに追加</button>
+      <div id="favorite-save-status" class="status" role="status" aria-live="polite"></div>
+    </section>
+
+    <!-- ④ お気に入り一覧 -->
+    <section class="card" aria-labelledby="favorites-heading">
+      <h2 id="favorites-heading">お気に入り一覧</h2>
+      <p id="favorites-empty" class="card__note">まだ登録がありません。</p>
+      <ul id="favorites-list" class="favorites-list" hidden></ul>
     </section>
   </main>
 

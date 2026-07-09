@@ -4,7 +4,8 @@
 
 import { getCurrentLocation } from "./geolocation.js";
 import { validateInputs } from "./validation.js";
-import { generateRecommendation } from "./outfitRules.js";
+import { generateRecommendation, CONDITION_LABELS } from "./outfitRules.js";
+import { save as saveFavorite, findAll as findAllFavorites, remove as removeFavorite } from "./favorites.js";
 
 // --- DOM要素の取得 ---
 const locateBtn = document.getElementById("locate-btn");
@@ -19,6 +20,14 @@ const formError = document.getElementById("form-error");
 
 const recommendationSection = document.getElementById("recommendation-section");
 const recommendationOutput = document.getElementById("recommendation-output");
+const saveFavoriteBtn = document.getElementById("save-favorite-btn");
+const favoriteSaveStatus = document.getElementById("favorite-save-status");
+
+const favoritesEmpty = document.getElementById("favorites-empty");
+const favoritesList = document.getElementById("favorites-list");
+
+// 直近に生成した提案（お気に入り保存用に一時保持する）
+let currentEntry = null;
 
 const fieldErrorEls = {
   temperature: document.getElementById("error-temperature"),
@@ -85,8 +94,69 @@ function renderRecommendation({ baseOutfit, tips, summary }) {
         : ""
     }
   `;
+  favoriteSaveStatus.textContent = "";
+  favoriteSaveStatus.classList.remove("status--error", "status--success");
   recommendationSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
+
+// --- お気に入り一覧の描画 ---
+function renderFavorites() {
+  const items = findAllFavorites();
+
+  if (items.length === 0) {
+    favoritesEmpty.hidden = false;
+    favoritesList.hidden = true;
+    favoritesList.innerHTML = "";
+    return;
+  }
+
+  favoritesEmpty.hidden = true;
+  favoritesList.hidden = false;
+  favoritesList.innerHTML = items
+    .map((item) => {
+      const conditionLabel = CONDITION_LABELS[item.condition] ?? item.condition;
+      const savedAtLabel = new Date(item.savedAt).toLocaleString("ja-JP");
+      return `
+        <li class="favorite-item" data-id="${item.id}">
+          <div class="favorite-item__body">
+            <strong>${item.summary}</strong>
+            <p>${item.baseOutfit}</p>
+            ${
+              item.tips && item.tips.length
+                ? `<ul>${item.tips.map((tip) => `<li>${tip}</li>`).join("")}</ul>`
+                : ""
+            }
+            <div class="favorite-item__meta">
+              保存日時: ${savedAtLabel}（気温${item.temperature}℃・${conditionLabel}・湿度${item.humidity}%）
+            </div>
+          </div>
+          <button type="button" class="favorite-item__delete" data-id="${item.id}">削除</button>
+        </li>
+      `;
+    })
+    .join("");
+}
+
+// お気に入り一覧の削除ボタン（イベント委任）
+favoritesList.addEventListener("click", (event) => {
+  const target = event.target.closest(".favorite-item__delete");
+  if (!target) return;
+  removeFavorite(target.dataset.id);
+  renderFavorites();
+});
+
+// --- お気に入りに追加 ---
+saveFavoriteBtn.addEventListener("click", () => {
+  if (!currentEntry) return;
+  saveFavorite(currentEntry);
+  favoriteSaveStatus.textContent = "お気に入りに保存しました。";
+  favoriteSaveStatus.classList.remove("status--error");
+  favoriteSaveStatus.classList.add("status--success");
+  renderFavorites();
+});
+
+// 初期表示時に保存済みのお気に入りを読み込む
+renderFavorites();
 
 // --- フォーム送信 ---
 form.addEventListener("submit", (event) => {
@@ -109,5 +179,6 @@ form.addEventListener("submit", (event) => {
   }
 
   const recommendation = generateRecommendation(values);
+  currentEntry = { ...values, ...recommendation };
   renderRecommendation(recommendation);
 });

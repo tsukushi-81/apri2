@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>天候と服装のシステム（プロトタイプ）</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="app__header">
+      <h1>天候と服装のシステム</h1>
+      <p class="app__subtitle">気温・天気・湿度から、その日のおすすめの服装を提案します</p>
+    </header>
+
+    <!-- ① 位置情報の観測 -->
+    <section class="card" aria-labelledby="location-heading">
+      <h2 id="location-heading">1. 位置情報の観測</h2>
+      <p class="card__note">
+        現在地の緯度・経度を取得します（天気の自動取得は今回は行いません。下のフォームに手動で入力してください）。
+      </p>
+      <button id="locate-btn" type="button" class="btn">現在地を取得する</button>
+      <div id="location-status" class="status" role="status" aria-live="polite"></div>
+      <div id="location-result" class="result-box" hidden></div>
+    </section>
+
+    <!-- ② 気温・天候・湿度の入力 -->
+    <section class="card" aria-labelledby="form-heading">
+      <h2 id="form-heading">2. 気温・天候・湿度の入力</h2>
+      <form id="outfit-form" novalidate>
+        <div class="field">
+          <label for="temperature">気温（℃）</label>
+          <input
+            type="number"
+            id="temperature"
+            name="temperature"
+            step="0.1"
+            min="-30"
+            max="45"
+            placeholder="例: 22"
+          />
+          <span class="field__error" id="error-temperature" role="alert"></span>
+        </div>
+
+        <div class="field">
+          <label for="condition">天気</label>
+          <select id="condition" name="condition">
+            <option value="">選択してください</option>
+            <option value="sunny">晴れ</option>
+            <option value="cloudy">曇り</option>
+            <option value="rainy">雨</option>
+            <option value="snowy">雪</option>
+          </select>
+          <span class="field__error" id="error-condition" role="alert"></span>
+        </div>
+
+        <div class="field">
+          <label for="humidity">湿度（%）</label>
+          <input
+            type="number"
+            id="humidity"
+            name="humidity"
+            step="1"
+            min="0"
+            max="100"
+            placeholder="例: 60"
+          />
+          <span class="field__error" id="error-humidity" role="alert"></span>
+        </div>
+
+        <div class="field field--submit">
+          <button type="submit" class="btn btn--primary">服装を確認する</button>
+        </div>
+        <div id="form-error" class="status status--error" role="alert" aria-live="assertive"></div>
+      </form>
+    </section>
+
+    <!-- ③ 結果表示 -->
+    <section class="card card--result" id="recommendation-section" hidden aria-labelledby="result-heading">
+      <h2 id="result-heading">おすすめの服装</h2>
+      <div id="recommendation-output"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+:root {
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-error: #dc2626;
+  --color-success: #15803d;
+  --color-bg: #f4f6fb;
+  --color-card: #ffffff;
+  --color-border: #d9dee7;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.app__header h1 {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.app__subtitle {
+  color: var(--color-text-muted);
+  margin-top: 0;
+  font-size: 0.95rem;
+}
+
+.card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.card h2 {
+  font-size: 1.1rem;
+  margin-top: 0;
+}
+
+.card__note {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  margin-top: -4px;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--color-primary);
+  background: #fff;
+  color: var(--color-primary);
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #eff4ff;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn--primary:hover {
+  background: var(--color-primary-dark);
+}
+
+.field {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.field input:invalid,
+.field.field--invalid input,
+.field.field--invalid select {
+  border-color: var(--color-error);
+}
+
+.field__error {
+  color: var(--color-error);
+  font-size: 0.82rem;
+  min-height: 1.1em;
+}
+
+.field--submit {
+  margin-top: 8px;
+}
+
+.status {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  min-height: 1.2em;
+}
+
+.status--error {
+  color: var(--color-error);
+}
+
+.status--success {
+  color: var(--color-success);
+}
+
+.result-box {
+  margin-top: 10px;
+  background: #f0f4ff;
+  border: 1px solid #c7d7fb;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+}
+
+.card--result {
+  border-color: #b9e6c9;
+  background: #f3fbf5;
+}
+
+#recommendation-output h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+#recommendation-output ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+#recommendation-output li {
+  margin-bottom: 4px;
+}

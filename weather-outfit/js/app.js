@@ -7,7 +7,7 @@
 //   - favoritesUI.js   : お気に入りの登録・一覧・削除・再利用
 
 import { initLocationUI } from "./ui/locationUI.js";
-import { initAutoFillUI } from "./ui/autoFillUI.js";
+import { initAutoFillUI } from "./ui/autofillUI.js";
 import { initTimeOfDayUI } from "./ui/timeOfDayUI.js";
 import { initOutfitFormUI } from "./ui/outfitFormUI.js";
 import { initFavoritesUI } from "./ui/favoritesUI.js";

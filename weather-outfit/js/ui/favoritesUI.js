@@ -111,6 +111,7 @@ export function initFavoritesUI() {
 
   document.addEventListener(EVENT_OUTFIT_GENERATED, (event) => {
     currentEntry = event.detail;
+    saveFavoriteBtn.disabled = false;
     favoriteSaveStatus.textContent = "";
     favoriteSaveStatus.classList.remove("status--error", "status--success");
   });
@@ -119,6 +120,7 @@ export function initFavoritesUI() {
 
   saveFavoriteBtn.addEventListener("click", () => {
     if (!currentEntry) return;
+    saveFavoriteBtn.disabled = true;
     saveFavorite(currentEntry);
     favoriteSaveStatus.textContent = "お気に入りに保存しました。";
     favoriteSaveStatus.classList.remove("status--error");

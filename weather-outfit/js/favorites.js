@@ -56,3 +56,11 @@ export function remove(id) {
   const items = readAll().filter((item) => item.id !== id);
   writeAll(items);
 }
+
+/** 指定IDのお気に入りを更新する */
+export function update(id, changes) {
+  const items = readAll().map((item) =>
+    item.id === id ? { ...item, ...changes } : item
+  );
+  writeAll(items);
+}

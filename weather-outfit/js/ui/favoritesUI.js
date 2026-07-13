@@ -1,12 +1,57 @@
-// 「お気に入り登録・一覧・削除・再利用」機能のUI制御
-// 保存処理は favorites.js（localStorageラッパー）に分離済み。
-// 直近の提案内容は outfitFormUI.js から EVENT_OUTFIT_GENERATED イベントで受け取る。
-// 一覧の再描画は favorites.js が発火する EVENT_FAVORITES_UPDATED を購読して行うため、
-// timeOfDayUI.js など他のモジュールから保存された場合も自動で反映される。
+// 「お気に入り登録・一覧・削除・編集・再利用」機能のUI制御
 
 import { CONDITION_LABELS } from "../outfitRules.js";
-import { save as saveFavorite, findAll as findAllFavorites, remove as removeFavorite } from "../favorites.js";
+import { save as saveFavorite, findAll as findAllFavorites, remove as removeFavorite, update as updateFavorite } from "../favorites.js";
 import { EVENT_OUTFIT_GENERATED, EVENT_FAVORITES_UPDATED } from "../events.js";
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildEditFormHTML(item) {
+  const tipsText = (item.tips ?? []).join("\n");
+  return `
+    <div class="favorite-item-edit">
+      <div class="favorite-item-edit__field">
+        <label>気温（℃）</label>
+        <input type="number" class="edit-temperature" step="0.1" min="-30" max="45" value="${escapeHtml(item.temperature)}" />
+      </div>
+      <div class="favorite-item-edit__field">
+        <label>天気</label>
+        <select class="edit-condition">
+          <option value="sunny"${item.condition === "sunny" ? " selected" : ""}>晴れ</option>
+          <option value="cloudy"${item.condition === "cloudy" ? " selected" : ""}>曇り</option>
+          <option value="rainy"${item.condition === "rainy" ? " selected" : ""}>雨</option>
+          <option value="snowy"${item.condition === "snowy" ? " selected" : ""}>雪</option>
+        </select>
+      </div>
+      <div class="favorite-item-edit__field">
+        <label>湿度（%）</label>
+        <input type="number" class="edit-humidity" step="1" min="0" max="100" value="${escapeHtml(item.humidity)}" />
+      </div>
+      <div class="favorite-item-edit__field">
+        <label>まとめ</label>
+        <input type="text" class="edit-summary" value="${escapeHtml(item.summary)}" />
+      </div>
+      <div class="favorite-item-edit__field">
+        <label>服装</label>
+        <textarea class="edit-base-outfit" rows="2">${escapeHtml(item.baseOutfit)}</textarea>
+      </div>
+      <div class="favorite-item-edit__field">
+        <label>ポイント（1行に1項目）</label>
+        <textarea class="edit-tips" rows="3">${escapeHtml(tipsText)}</textarea>
+      </div>
+      <div class="favorite-item-edit__actions">
+        <button type="button" class="btn btn--primary favorite-item__save" data-id="${item.id}">保存</button>
+        <button type="button" class="btn favorite-item__cancel">キャンセル</button>
+      </div>
+    </div>
+  `;
+}
 
 export function initFavoritesUI() {
   const saveFavoriteBtn = document.getElementById("save-favorite-btn");
@@ -15,13 +60,11 @@ export function initFavoritesUI() {
   const favoritesList = document.getElementById("favorites-list");
   const favoritesReuseStatus = document.getElementById("favorites-reuse-status");
 
-  // フォームへの再入力（再利用）で使う入力欄
   const temperatureInput = document.getElementById("temperature");
   const conditionSelect = document.getElementById("condition");
   const humidityInput = document.getElementById("humidity");
   const outfitFormSection = document.getElementById("form-heading");
 
-  // 直近に生成された提案（お気に入り保存用に一時保持する）
   let currentEntry = null;
 
   function renderFavorites() {
@@ -57,6 +100,7 @@ export function initFavoritesUI() {
             </div>
             <div class="favorite-item__actions">
               <button type="button" class="favorite-item__reuse" data-id="${item.id}">この内容で再入力</button>
+              <button type="button" class="favorite-item__edit" data-id="${item.id}">編集</button>
               <button type="button" class="favorite-item__delete" data-id="${item.id}">削除</button>
             </div>
           </li>
@@ -65,14 +109,12 @@ export function initFavoritesUI() {
       .join("");
   }
 
-  // 服装提案が新しく生成されたら、保存対象として保持する
   document.addEventListener(EVENT_OUTFIT_GENERATED, (event) => {
     currentEntry = event.detail;
     favoriteSaveStatus.textContent = "";
     favoriteSaveStatus.classList.remove("status--error", "status--success");
   });
 
-  // お気に入りの保存・削除（自分自身の操作、または他のUIモジュールからの保存）を検知して再描画する
   document.addEventListener(EVENT_FAVORITES_UPDATED, renderFavorites);
 
   saveFavoriteBtn.addEventListener("click", () => {
@@ -87,6 +129,38 @@ export function initFavoritesUI() {
     const deleteTarget = event.target.closest(".favorite-item__delete");
     if (deleteTarget) {
       removeFavorite(deleteTarget.dataset.id);
+      return;
+    }
+
+    const editTarget = event.target.closest(".favorite-item__edit");
+    if (editTarget) {
+      const id = editTarget.dataset.id;
+      const item = findAllFavorites().find((entry) => entry.id === id);
+      if (!item) return;
+      const li = editTarget.closest(".favorite-item");
+      li.innerHTML = buildEditFormHTML(item);
+      return;
+    }
+
+    const saveTarget = event.target.closest(".favorite-item__save");
+    if (saveTarget) {
+      const id = saveTarget.dataset.id;
+      const li = saveTarget.closest(".favorite-item");
+      const changes = {
+        temperature: parseFloat(li.querySelector(".edit-temperature").value),
+        condition: li.querySelector(".edit-condition").value,
+        humidity: parseFloat(li.querySelector(".edit-humidity").value),
+        summary: li.querySelector(".edit-summary").value.trim(),
+        baseOutfit: li.querySelector(".edit-base-outfit").value.trim(),
+        tips: li.querySelector(".edit-tips").value.split("\n").map((t) => t.trim()).filter(Boolean),
+      };
+      updateFavorite(id, changes);
+      return;
+    }
+
+    const cancelTarget = event.target.closest(".favorite-item__cancel");
+    if (cancelTarget) {
+      renderFavorites();
       return;
     }
 
@@ -111,6 +185,5 @@ export function initFavoritesUI() {
     }
   });
 
-  // 初期表示時に保存済みのお気に入りを読み込む
   renderFavorites();
 }

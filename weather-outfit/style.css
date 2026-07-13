@@ -219,3 +219,53 @@ body {
 .favorite-item__delete:hover {
   text-decoration: underline;
 }
+
+.favorite-item__edit {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px 6px;
+}
+
+.favorite-item__edit:hover {
+  text-decoration: underline;
+}
+
+.favorite-item-edit {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.favorite-item-edit__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.favorite-item-edit__field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.favorite-item-edit__field input,
+.favorite-item-edit__field select,
+.favorite-item-edit__field textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.favorite-item-edit__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}

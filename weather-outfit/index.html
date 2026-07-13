@@ -17,7 +17,7 @@
     <section class="card" aria-labelledby="location-heading">
       <h2 id="location-heading">1. 位置情報の観測</h2>
       <p class="card__note">
-        現在地の緯度・経度を取得します（天気の自動取得は今回は行いません。下のフォームに手動で入力してください）。
+        現在地の緯度・経度を取得します。天気情報を自動入力したい場合は、下の「2. 気温・天候・湿度の入力」にある「現在地の天気を自動取得する」ボタンをご利用ください。
       </p>
       <button id="locate-btn" type="button" class="btn">現在地を取得する</button>
       <div id="location-status" class="status" role="status" aria-live="polite"></div>
@@ -27,6 +27,11 @@
     <!-- ② 気温・天候・湿度の入力 -->
     <section class="card" aria-labelledby="form-heading">
       <h2 id="form-heading">2. 気温・天候・湿度の入力</h2>
+      <p class="card__note">
+        Open-Meteo（外部の天気API）から現在地の天気を取得し、下のフォームに自動入力できます。緯度・経度以外の情報は送信されません。
+      </p>
+      <button id="auto-fill-btn" type="button" class="btn">現在地の天気を自動取得する</button>
+      <div id="auto-fill-status" class="status" role="status" aria-live="polite"></div>
       <form id="outfit-form" novalidate>
         <div class="field">
           <label for="temperature">気温（℃）</label>
@@ -75,7 +80,18 @@
       </form>
     </section>
 
-    <!-- ③ 結果表示 -->
+    <!-- ③ 時間帯別の服装提案 -->
+    <section class="card" aria-labelledby="time-of-day-heading">
+      <h2 id="time-of-day-heading">3. 朝・昼・夜の服装提案</h2>
+      <p class="card__note">
+        現在地の今日の天気予報（Open-Meteo）から、朝・昼・夜それぞれの服装をまとめて提案します。
+      </p>
+      <button id="time-of-day-btn" type="button" class="btn">朝・昼・夜の服装を提案する</button>
+      <div id="time-of-day-status" class="status" role="status" aria-live="polite"></div>
+      <div id="time-of-day-result" class="time-of-day-result" hidden></div>
+    </section>
+
+    <!-- ④ 結果表示 -->
     <section class="card card--result" id="recommendation-section" hidden aria-labelledby="result-heading">
       <h2 id="result-heading">おすすめの服装</h2>
       <div id="recommendation-output"></div>
@@ -83,9 +99,10 @@
       <div id="favorite-save-status" class="status" role="status" aria-live="polite"></div>
     </section>
 
-    <!-- ④ お気に入り一覧 -->
+    <!-- ⑤ お気に入り一覧 -->
     <section class="card" aria-labelledby="favorites-heading">
       <h2 id="favorites-heading">お気に入り一覧</h2>
+      <div id="favorites-reuse-status" class="status" role="status" aria-live="polite"></div>
       <p id="favorites-empty" class="card__note">まだ登録がありません。</p>
       <ul id="favorites-list" class="favorites-list" hidden></ul>
     </section>

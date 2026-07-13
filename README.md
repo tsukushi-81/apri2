@@ -1,6 +1,6 @@
 # 天候と服装のシステム
 
-> 天気・気温・湿度をもとに、その日に適した服装を提案するReact PWA（Progressive Web App）の要件定義ドキュメント
+> 気温・天気・湿度をもとに、その日に適した服装を提案するWebアプリ（プロトタイプ）のドキュメント
 
 ---
 
@@ -11,26 +11,35 @@
 3. [機能一覧](#3-機能一覧)
 4. [機能要求・非機能要求](#4-機能要求非機能要求)
 5. [ユースケース](#5-ユースケース)
-6. [クラス設計](#6-クラス設計)
+6. [モジュール構成](#6-モジュール構成)
 7. [シーケンス図](#7-シーケンス図)
 8. [状態遷移図](#8-状態遷移図)
 9. [使用プラットフォーム](#9-使用プラットフォーム)
-10. [実装状況（現在のプロトタイプ）](#10-実装状況現在のプロトタイプ)
 
 ---
 
 ## 1. プロジェクト概要
 
 ### アプリ名
-天候と服装のシステム
+天候と服装のシステム（プロトタイプ）
 
 ### 目的
-天気・気温・湿度をもとに、その日に適した服装をユーザーに提案するReact PWA（Progressive Web App）を開発する。朝・昼・夜の時間帯別に提案を行い、ユーザーが気に入った服装をメモとしてブラウザのローカルストレージに保存できる。Service Workerによるオフライン対応とホーム画面へのインストール（Add to Home Screen）に対応する。
+気温・天気・湿度をもとに、ルールベースでその日に適した服装を提案するWebアプリ。気温・天気・湿度は、Open-Meteo APIを使った現在地の天気の自動取得、またはフォームへの手入力のどちらでも指定できる。さらに、朝・昼・夜3時点の天気をまとめて取得し時間帯別に提案することもできる。気に入った提案は「お気に入り」としてブラウザのlocalStorageに保存でき、保存済みの内容をフォームに呼び戻して再利用することもできる。
 
-### 作らないもの（非目標）
+### 現在の実装範囲
+- 天気・気温・湿度は**フォームへの手入力**、または**Open-Meteo API（外部の無料天気API）を使った自動取得**のいずれかで入力できる
+- 自動取得は「現在地の天気を自動取得する」ボタン1つで、位置情報取得→Open-Meteo API呼び出し→フォームへの自動反映までを行う（送信するのは緯度・経度のみ）
+- 「朝・昼・夜の服装を提案する」ボタンで、Open-Meteoの時間帯別（1時間ごと）予報から朝8時・昼14時・夜20時の代表値を取得し、3件の服装提案を一度に表示する
+- お気に入り一覧の各項目に「この内容で再入力」ボタンがあり、保存済みの気温・天気・湿度をフォームへ復元して再利用できる
+- 位置情報の取得（画面表示用）は服装提案フローと独立した機能としても引き続き利用できる
+- フレームワークを使わないVanilla JavaScript（ES Modules）で実装
+- ビルドツール・バンドラーは使用せず、静的ファイルをそのままブラウザで実行する
+
+### 作らないもの・未実装のもの（非目標）
+- PWA化（Service Worker・manifest.json・オフライン対応・ホーム画面インストール）
+- React等のフレームワーク導入
 - 服装のコーディネート画像表示・ブランド推薦
 - 週間予報・降水確率の表示
-- 手動での都市名検索・時間帯のカスタマイズ
 - 複数デバイス間のデータ同期・クラウド保存
 - ユーザー認証
 
@@ -40,73 +49,68 @@
 
 | 項目 | 内容 |
 |------|------|
-| フレームワーク | React（JavaScript / TypeScript） |
-| PWA対応 | Vite PWA Plugin または Create React App（Workbox） |
-| 対応プラットフォーム | モダンブラウザ（Chrome / Firefox / Safari / Edge）+ ホーム画面インストール |
-| 天気データAPI | [Open-Meteo](https://open-meteo.com/)（APIキー不要・完全無料） |
-| ローカル保存 | localStorage（Web Storage API） |
-| オフラインキャッシュ | Service Worker + Cache API（Workbox） |
+| フレームワーク | なし（Vanilla JavaScript / ES Modules） |
+| ビルドツール | なし（静的ファイルをそのまま配信） |
+| 対応プラットフォーム | モダンブラウザ（Chrome / Firefox / Safari / Edge） |
+| 天気データ | [Open-Meteo](https://open-meteo.com/)（APIキー不要・無料）による自動取得、またはフォームへの手入力（併用可） |
+| ローカル保存 | localStorage（Web Storage API）— お気に入りのみ |
+| 位置情報取得 | Geolocation API（ブラウザ標準）— 画面表示のみ |
 | バックエンド | なし（クライアントサイドのみ） |
-| 位置情報取得 | Geolocation API（ブラウザ標準） |
+| PWA対応 | 未実装 |
 
-### PWA必須ファイル
-
-| ファイル | 役割 |
-|----------|------|
-| `manifest.json` | アプリ名・アイコン・テーマカラー・表示モードを定義 |
-| `service-worker.js` | リソースのキャッシュ戦略・オフライン対応を実装 |
-| アイコン画像 | 192×192px / 512×512px の PNG（インストール時に使用） |
-
-### Workbox キャッシュ戦略
-
-| 対象 | 戦略 | 理由 |
-|------|------|------|
-| HTML / JS / CSS | Cache First | 静的リソースは変化が少ない |
-| Open-Meteo API | Network First（5分TTL） | 天気データは鮮度が重要 |
-| アイコン・画像 | Cache First | 変化しないため積極的にキャッシュ |
-
-### Open-Meteo APIエンドポイント例
+### ファイル構成
 
 ```
-GET https://api.open-meteo.com/v1/forecast
-  ?latitude={lat}
-  &longitude={lng}
-  &hourly=temperature_2m,relativehumidity_2m,weathercode
+apri2/
+├── index.html                # ルート：weather-outfit/へのリダイレクトページ
+└── weather-outfit/
+    ├── index.html             # メイン画面
+    ├── style.css               # スタイル
+    └── js/
+        ├── app.js               # エントリーポイント（各UIの初期化）
+        ├── events.js             # モジュール間で使う共通イベント名
+        ├── validation.js         # フォーム入力値のバリデーション
+        ├── outfitRules.js        # 服装レコメンドロジック（ルールベース）
+        ├── favorites.js          # お気に入りのlocalStorageリポジトリ（保存・削除時にEVENT_FAVORITES_UPDATEDを発火）
+        ├── geolocation.js        # Geolocation APIのラッパー
+        ├── weatherApi.js         # Open-Meteo APIのラッパー（現在の天気・時間帯別予報の取得）
+        └── ui/
+            ├── locationUI.js      # 「位置情報の観測」のUI制御
+            ├── autoFillUI.js      # 「現在地の天気を自動取得してフォームに反映」のUI制御
+            ├── timeOfDayUI.js     # 「朝・昼・夜の服装提案」のUI制御
+            ├── outfitFormUI.js    # 「入力フォーム→服装提案」のUI制御
+            └── favoritesUI.js     # 「お気に入り登録・一覧・削除・再利用」のUI制御
 ```
 
 ---
 
 ## 3. 機能一覧
 
-### コア機能（優先度：高）
+### コア機能
 
 | 機能名 | 概要 |
 |--------|------|
-| 天気データ取得 | Open-Meteo APIから気温・湿度・天気状態を取得する |
-| 服装レコメンド表示 | 気象データをルールベースで判定し服装を提案する |
-| 時間帯別提案（朝・昼・夜） | 3時間予報から朝昼夜ごとに服装を提示する |
+| 気温・天気・湿度の入力 | ユーザーがフォームに気温（-30〜45℃）・天気（晴れ/曇り/雨/雪）・湿度（0〜100%）を入力する |
+| 天気の自動取得 | 現在地の緯度・経度をもとにOpen-Meteo APIから気温・湿度・天気を取得し、フォームへ自動反映する |
+| 朝・昼・夜の服装提案 | Open-Meteoの時間帯別予報から朝8時・昼14時・夜20時の代表値を取得し、3件の服装提案を同時に表示する |
+| 入力バリデーション | 未入力・範囲外・不正な値をフィールドごとにエラー表示する |
+| 服装レコメンド表示 | 入力値をルールベースで判定し、基本の服装＋天気・湿度に応じた追加アドバイスを表示する |
+| 位置情報の取得・表示 | ブラウザのGeolocation APIで現在地の緯度・経度・取得精度を取得し画面に表示する |
 
-### サポート機能（優先度：中）
+### サポート機能
 
 | 機能名 | 概要 |
 |--------|------|
-| お気に入り登録 | ユーザーが任意のテキストを服装メモとして保存する |
-| お気に入り一覧・削除 | 保存済みメモを一覧表示し個別に削除できる |
-| オフライン時キャッシュ表示 | Service Workerが直前の天気データをキャッシュし、オフライン時も表示する |
-| ローカルデータ永続化 | localStorage でブラウザ内に保存する |
-| ホーム画面インストール | manifest.jsonによりAdd to Home Screenを促すバナーを表示する |
+| お気に入り登録 | 直前に生成された服装提案（入力値＋提案内容）を1件保存する。朝・昼・夜の提案は時間帯ラベル付きで保存できる |
+| お気に入り一覧・削除 | 保存済みの提案を新しい順に一覧表示し、個別に削除できる |
+| お気に入りの再利用 | 保存済みの気温・天気・湿度をフォームに復元し、同じ条件で再度提案を確認できる |
 
 ### 共通機能
 
-| 機能名 | 優先度 | 概要 |
-|--------|--------|------|
-| 位置情報取得（Geolocation API） | 高 | ブラウザのGeolocation APIで現在地の緯度・経度を取得する |
-| Service Worker登録 | 高 | Workboxでキャッシュ戦略を実装しオフライン対応する |
-| Web App Manifest | 高 | アプリ名・アイコン・テーマカラーを定義しインストール可能にする |
-| ページナビゲーション | 中 | 画面間の遷移（React Router 等） |
-| インストールバナー | 中 | beforeinstallpromptイベントでAdd to Home Screenを促す |
-| ローディング表示 | 低 | API通信中のスピナー・スケルトン |
-| ファビコン・OGP設定 | 低 | ブラウザタブのアイコンとSNSシェア時のメタ情報 |
+| 機能名 | 概要 |
+|--------|------|
+| フォームエラー表示 | フィールド単位・フォーム全体のエラーメッセージ表示（role="alert"） |
+| ステータス表示 | 位置情報取得中／成功／失敗、お気に入り保存成功などのステータスをaria-live領域で通知 |
 
 ---
 
@@ -118,14 +122,14 @@ GET https://api.open-meteo.com/v1/forecast
 
 | 機能名 | 内容 | 分類 |
 |--------|------|------|
-| 天気データ取得 | Open-Meteo APIから気温・湿度・天気状態を取得する | コア |
-| 位置情報取得 | ブラウザのGeolocation APIで現在地の緯度・経度を取得する | コア |
-| 服装レコメンド表示 | 気象データをルールベースで判定し服装を提案する | コア |
-| 時間帯別提案 | 朝・昼・夜それぞれに異なる服装提案を表示する | コア |
-| お気に入り登録 | ユーザーが任意のテキストを服装メモとして保存する | サポート |
-| お気に入り一覧・削除 | 保存済みメモを一覧表示し個別に削除できる | サポート |
-| オフライン時キャッシュ表示 | Service Workerが直前の天気データを返し画面を表示する | サポート |
-| ホーム画面インストール | manifest.jsonとbeforeinstallpromptでインストールを促す | サポート |
+| 位置情報取得 | ブラウザのGeolocation APIで現在地の緯度・経度・精度を取得し表示する | コア |
+| 天気の自動取得 | 位置情報をもとにOpen-Meteo APIから気温・湿度・天気を取得し、フォームへ自動入力する | コア |
+| 朝・昼・夜の服装提案 | 位置情報をもとにOpen-Meteoの時間帯別予報を取得し、朝・昼・夜3件の服装提案を生成する | コア |
+| 気温・天気・湿度の入力 | フォームで数値・選択肢を受け取り、範囲外や未入力を検証する | コア |
+| 服装レコメンド表示 | 気温帯ルール＋天候・湿度アドバイスを組み合わせて提案を生成する | コア |
+| お気に入り登録 | 直前の提案内容（入力値＋提案文、任意で時間帯ラベル）を1件localStorageへ保存する | サポート |
+| お気に入り一覧・削除 | 保存済みの提案を一覧表示し個別に削除できる | サポート |
+| お気に入りの再利用 | 保存済みの気温・天気・湿度をフォームの入力欄に復元する | サポート |
 
 ### 非機能要求
 
@@ -135,259 +139,343 @@ GET https://api.open-meteo.com/v1/forecast
 
 | 要求 | 基準・根拠 |
 |------|-----------|
-| ページ表示から天気表示まで3秒以内 | Open-Meteo応答速度 + Geolocation取得の合計を考慮 |
+| フォーム送信から提案表示まで即時（100ms以内、手動入力時） | 外部通信を行わずクライアント内のルール判定のみで完結するため |
+| 天気自動取得は3秒以内に完了する | 位置情報取得＋Open-Meteo APIレスポンス時間の合計を考慮 |
+| 朝・昼・夜の服装提案は3秒以内に完了する | 位置情報取得＋Open-Meteo時間帯別予報（1回のAPI呼び出し）のレスポンス時間を考慮 |
 | お気に入りの読み込みは即時（500ms以内） | localStorageはI/O待ちなしで読み込める |
+| お気に入りの再利用はクリック直後に反映される（100ms以内） | localStorageに保存済みの値をフォームへ直接コピーするだけで完結するため |
 
 #### セキュリティ
 
 | 要求 | 基準・根拠 |
 |------|-----------|
-| 位置情報はOpen-Meteo以外に送信しない | APIへの送信は緯度経度のみ・匿名 |
+| 天気自動取得時に送信する情報を緯度・経度のみに限定する | Open-Meteo APIへのリクエストパラメータは緯度・経度のみで、氏名や端末情報などは含めない |
+| 位置情報・入力値・お気に入りデータをOpen-Meteo以外の外部へ送信しない | 天気取得以外の外部通信は行わず、それ以外はすべてブラウザ内で完結する |
 | お気に入りデータはlocalStorageにのみ保存 | クラウド送信・外部共有なし |
-| 位置情報取得はブラウザの許可ダイアログを通じて行う | Geolocation APIの仕様に準拠（HTTPS必須） |
-| 本番環境はHTTPS必須 | Geolocation API・Service Workerの両方がHTTPS環境でのみ動作する |
-| Service Workerのスコープを `/` に限定する | 意図しないリソースへのインターセプトを防ぐ |
+| 位置情報取得はブラウザの許可ダイアログを通じて行う | Geolocation APIの仕様に準拠 |
+| 天気取得はHTTPS経由のみで行う | Open-Meteo APIのHTTPSエンドポイントのみを使用する |
 
 #### ユーザビリティ
 
 | 要求 | 基準・根拠 |
 |------|-----------|
-| 主要操作は3クリック以内で完結する | 起動→天気確認、起動→お気に入り登録の両導線 |
-| エラー・ローディング状態を必ず画面上に示す | 通信中スピナー、オフライン時メッセージ表示 |
-| PC・スマホブラウザ両方でレスポンシブ対応する | CSSメディアクエリまたはTailwind CSSを活用 |
+| 主要操作は3クリック以内で完結する | 入力→提案確認、提案確認→お気に入り登録の両導線 |
+| エラー状態を必ず画面上に示す | フィールドエラー・フォーム全体エラーをrole="alert"で通知 |
+| PC・スマホブラウザ両方でレスポンシブ対応する | CSSのみで最大幅640pxのカードレイアウトを実装 |
 
 #### 保守性
 
 | 要求 | 基準・根拠 |
 |------|-----------|
-| 服装提案ロジックを独立したファイルに分離する | ルール変更時にUIコンポーネントを触らなくてよい構造 |
-| APIのエンドポイントや閾値は定数として一元管理 | 変更箇所を1ファイルに集約し修正コストを下げる |
-| ReactのコンポーネントをAtomicDesign等で分割する | 再利用性と可読性の確保。テスト容易性にも寄与 |
-| Service Workerのキャッシュバージョンを定数で管理する | デプロイ時にキャッシュを確実に更新できる構造 |
+| 服装提案ロジックを独立したファイルに分離する | `outfitRules.js`を変更すればUIコンポーネントを触らずにルール変更できる |
+| バリデーションロジックを独立したファイルに分離する | `validation.js`単体でテスト・変更が可能 |
+| 天気取得ロジックを`weatherApi.js`に分離する | APIプロバイダの変更やレスポンス形式の変更時に、UIコード（`autoFillUI.js` / `timeOfDayUI.js`）を触らずに対応できる |
+| UIモジュールを機能単位で分割する | `locationUI.js` / `autoFillUI.js` / `timeOfDayUI.js` / `outfitFormUI.js` / `favoritesUI.js`に分離し責務を限定 |
+| モジュール間の連携はカスタムイベントで疎結合にする | `events.js`の`outfit:generated`イベントで提案生成を、`favorites:updated`イベントでお気に入り更新をそれぞれ通知し、DOMや内部状態を直接触らずに連携する |
+| お気に入りの保存元を問わず一覧表示を自動更新する | `favorites.js`が保存・削除のたびに`favorites:updated`を発火するため、`outfitFormUI.js`経由でも`timeOfDayUI.js`経由でも`favoritesUI.js`側の再描画コードを個別に呼ぶ必要がない |
 
 ---
 
 ## 5. ユースケース
 
-アクターは3つ定義している。「ユーザー」が主アクター、「ブラウザGeolocation」と「Open-Meteo API」が外部システムとしての副アクターとなる。PWA対応によりオフライン時はService Workerがキャッシュを返すため、UC8はエラーではなくキャッシュ表示に変わる。
+アクターは2つ。「ユーザー」が主アクター、「ブラウザ Geolocation API」と「Open-Meteo API」が外部システムとしての副アクター。
 
 ```mermaid
 flowchart LR
   User(["ユーザー"])
   GPS(["ブラウザ Geolocation API"])
   API(["Open-Meteo API"])
-  SW(["Service Worker"])
 
-  subgraph SYS ["天候と服装のシステム（PWA）"]
-    UC1["天気・気温・湿度を確認する"]
-    UC2["服装レコメンドを見る"]
-    UC3["時間帯別の服装提案を見る"]
-    UC4["お気に入り服装を登録する"]
+  subgraph SYS ["天候と服装のシステム（プロトタイプ）"]
+    UC1["位置情報を取得・表示する"]
+    UC2["気温・天気・湿度を入力する"]
+    UC3["服装レコメンドを見る"]
+    UC4["お気に入りに登録する"]
     UC5["お気に入り一覧を管理する"]
-    UC6["位置情報を取得する"]
-    UC7["天気データを取得する"]
-    UC8["キャッシュデータを返す（オフライン時）"]
-    UC9["ホーム画面にインストールする"]
+    UC6["現在地の天気を自動取得してフォームに反映する"]
+    UC7["朝・昼・夜の服装提案を見る"]
+    UC8["お気に入りを再利用する"]
   end
 
   User -->|uses| UC1
   User -->|uses| UC2
-  User -->|uses| UC3
-  User -->|uses| UC4
   User -->|uses| UC5
-  User -->|uses| UC9
+  User -->|uses| UC6
+  User -->|uses| UC7
 
-  UC1 -->|«include»| UC6
-  UC1 -->|«include»| UC7
-  UC2 -->|«include»| UC1
-  UC3 -->|«include»| UC1
-  UC7 -.->|«extend» オフライン時| UC8
+  UC3 -->|«include»| UC2
+  UC4 -->|«include»| UC3
+  UC6 -.->|«extend» 入力の代わりに自動反映| UC2
+  UC8 -->|«include»| UC5
+  UC8 -.->|«extend» 再利用時にフォームへ反映| UC2
 
+  UC1 --- GPS
   UC6 --- GPS
+  UC6 --- API
+  UC7 --- GPS
   UC7 --- API
-  UC8 --- SW
 ```
 
 ### 矢印の読み方
 
-- **実線 `«include»`** — 必ず呼び出される関係（服装提案は必ず天気確認を内包）
-- **点線 `«extend»`** — 条件付きで発生する関係（オフライン時のみエラー表示が起動）
+- **実線 `«include»`** — 必ず呼び出される関係（服装提案は必ずフォーム入力を内包し、お気に入り登録は必ず提案生成を内包する。お気に入りの再利用（UC8）は一覧管理（UC5）を内包する）
+- **点線 `«extend»`** — 条件付きで発生する関係（天気自動取得（UC6）やお気に入り再利用（UC8）を使った場合のみ、手入力の代わりにフォームへ値が自動反映される）
+- UC6・UC7はGeolocation APIとOpen-Meteo APIの両方を利用する独立機能で、使わずにUC2（手動入力）のみで完結することもできる
+- UC7（朝・昼・夜の服装提案）はUC2〜UC4のフォーム入力フローとは独立しており、結果は直接お気に入りに追加できる
 
 ---
 
-## 6. クラス設計
+## 6. モジュール構成
 
-> Web版ではDartの型をJavaScript/TypeScriptの型に読み替える。`LocalStorage` クラスはブラウザの `window.localStorage` をラップした実装となる。PWA対応として `ServiceWorkerManager` と `InstallPromptManager` を追加している。
+> フレームワークやクラス構文（`class`）は使用しておらず、各ファイルはES Modulesとしてエクスポートした関数の集合になっている。以下は各モジュールが公開する関数と依存関係を示す。
 
 ```mermaid
 classDiagram
-  class Location {
-    +number latitude
-    +number longitude
-    +string cityName
-    +Date fetchedAt
+  class app_js {
+    +initLocationUI()
+    +initAutoFillUI()
+    +initTimeOfDayUI()
+    +initOutfitFormUI()
+    +initFavoritesUI()
+  }
+
+  class locationUI_js {
+    +initLocationUI() void
+  }
+
+  class autoFillUI_js {
+    +initAutoFillUI() void
+  }
+
+  class timeOfDayUI_js {
+    +initTimeOfDayUI() void
+  }
+
+  class outfitFormUI_js {
+    +initOutfitFormUI() void
+  }
+
+  class favoritesUI_js {
+    +initFavoritesUI() void
+  }
+
+  class geolocation_js {
     +getCurrentLocation() Promise~Location~
-    +isValid() boolean
   }
 
-  class WeatherData {
-    +number temperature
-    +number humidity
-    +string condition
-    +Date observedAt
-    +HourlyForecast[] hourlyForecasts
-    +isStale() boolean
-    +isCached() boolean
+  class weatherApi_js {
+    +TIME_OF_DAY_HOURS
+    +TIME_OF_DAY_LABELS
+    +mapWeatherCode(code) string
+    +fetchCurrentWeather(location) Promise~Weather~
+    +fetchHourlyForecast(location) Promise~Hourly~
+    +fetchTimeOfDayForecast(location) Promise~ByPeriod~
   }
 
-  class HourlyForecast {
-    +string time
-    +number temperature
-    +number humidity
-    +string condition
+  class validation_js {
+    +LIMITS
+    +VALID_CONDITIONS
+    +validateInputs(raw) Result
   }
 
-  class OutfitRecommendation {
-    +string morningOutfit
-    +string afternoonOutfit
-    +string eveningOutfit
-    +Date generatedAt
-    +getSummary() string
+  class outfitRules_js {
+    +CONDITION_LABELS
+    +selectTemperatureRule(temperature) Rule
+    +generateRecommendation(input) Recommendation
   }
 
-  class OutfitRule {
-    +number tempMin
-    +number tempMax
-    +number humidityMax
-    +string condition
-    +string suggestion
-    +matches(temp number, humidity number, cond string) boolean
+  class favorites_js {
+    +save(entry) Record
+    +findAll() Record[]
+    +remove(id) void
   }
 
-  class RecommendationEngine {
-    +OutfitRule[] rules
-    +generate(weather WeatherData) OutfitRecommendation
-    +selectRule(temp number, humidity number, cond string) OutfitRule
+  class events_js {
+    +EVENT_OUTFIT_GENERATED : string
+    +EVENT_FAVORITES_UPDATED : string
   }
 
-  class FavoriteOutfit {
-    +string id
-    +string memo
-    +Date savedAt
-    +update(memo string) void
-  }
+  app_js --> locationUI_js : initializes
+  app_js --> autoFillUI_js : initializes
+  app_js --> timeOfDayUI_js : initializes
+  app_js --> outfitFormUI_js : initializes
+  app_js --> favoritesUI_js : initializes
 
-  class FavoriteRepository {
-    +save(item FavoriteOutfit) void
-    +findAll() FavoriteOutfit[]
-    +delete(id string) void
-    +findById(id string) FavoriteOutfit
-  }
-
-  class WeatherRepository {
-    +fetchWeather(loc Location) Promise~WeatherData~
-    +getCached() WeatherData
-    +clearCache() void
-  }
-
-  class WeatherService {
-    +baseUrl: string
-    +get(lat number, lng number) Promise~WeatherData~
-  }
-
-  class LocalStorage {
-    +set(key string, value string) void
-    +get(key string) string
-    +remove(key string) void
-  }
-
-  class ServiceWorkerManager {
-    +swPath: string
-    +cacheVersion: string
-    +register() Promise~void~
-    +unregister() Promise~void~
-    +onUpdateFound(callback Function) void
-  }
-
-  class InstallPromptManager {
-    +deferredPrompt: BeforeInstallPromptEvent
-    +isInstallable() boolean
-    +showPrompt() Promise~void~
-    +onInstalled(callback Function) void
-  }
-
-  WeatherData        "1"   *-- "1..*" HourlyForecast      : contains
-  RecommendationEngine "1" o-- "1..*" OutfitRule           : holds
-  RecommendationEngine "1" --> "1"    WeatherData          : uses
-  RecommendationEngine "1" --> "1"    OutfitRecommendation : creates
-  WeatherRepository  "1"   --> "1"    WeatherService       : calls
-  WeatherRepository  "1"   --> "1"    Location             : uses
-  WeatherRepository  "1"   --> "1"    WeatherData          : returns
-  FavoriteRepository "1"   --> "1..*" FavoriteOutfit       : manages
-  FavoriteRepository "1"   --> "1"    LocalStorage         : uses
+  locationUI_js --> geolocation_js : calls
+  autoFillUI_js --> geolocation_js : calls
+  autoFillUI_js --> weatherApi_js : calls
+  autoFillUI_js --> outfitRules_js : uses CONDITION_LABELS
+  timeOfDayUI_js --> geolocation_js : calls
+  timeOfDayUI_js --> weatherApi_js : calls
+  timeOfDayUI_js --> outfitRules_js : calls
+  timeOfDayUI_js --> favorites_js : calls
+  outfitFormUI_js --> validation_js : calls
+  outfitFormUI_js --> outfitRules_js : calls
+  outfitFormUI_js --> events_js : dispatches outfit-generated
+  favoritesUI_js --> events_js : listens outfit-generated / favorites-updated
+  favoritesUI_js --> favorites_js : calls
+  favoritesUI_js --> outfitRules_js : uses CONDITION_LABELS
+  favorites_js --> events_js : dispatches favorites-updated
 ```
 
-### 関連の種類
+### 依存の説明
 
-| 記法 | 種類 | 説明 |
-|------|------|------|
-| `*--` | コンポジション | WeatherDataが消えるとHourlyForecastも消える強い所有 |
-| `o--` | 集約 | OutfitRuleはEngineとは独立して差し替え可能 |
-| `-->` | 依存 | 「使う」関係。実装を差し替えても影響が少ない |
+| モジュール | 役割 |
+|------------|------|
+| `app.js` | エントリーポイント。5つのUIモジュールを初期化するだけの「つなぎ役」 |
+| `locationUI.js` / `autoFillUI.js` / `timeOfDayUI.js` / `outfitFormUI.js` / `favoritesUI.js` | 機能ごとのDOM操作を担当するUI制御層 |
+| `geolocation.js` / `weatherApi.js` / `validation.js` / `outfitRules.js` / `favorites.js` | UIから独立したロジック層（外部API連携・ルール・検証・永続化） |
+| `events.js` | UIモジュール間の連携に使う共通イベント名の定義（疎結合化） |
+
+`favorites.js`は保存・削除のたびに`favorites:updated`を発火する。`favoritesUI.js`はこのイベントを購読して一覧を再描画するだけなので、`outfitFormUI.js`経由（手動入力の結果を保存）でも`timeOfDayUI.js`経由（朝・昼・夜の提案を保存）でも、保存元を意識せずに一覧が自動更新される。
 
 ---
 
 ## 7. シーケンス図
 
-### UC1：天気取得・服装提案
+### UC1：位置情報の取得・表示
 
 ```mermaid
 sequenceDiagram
   autonumber
   actor User as ユーザー
-  participant UI as ホーム画面
-  participant SW as Service Worker
-  participant Ctrl as WeatherController
-  participant Repo as WeatherRepository
-  participant API as Open-Meteo API
-  participant Eng as RecommendationEngine
+  participant UI as locationUI
+  participant Geo as geolocation.js
+  participant Browser as ブラウザ Geolocation API
 
-  User->>UI: ページを開く
-  UI->>SW: リソースリクエスト
-  SW-->>UI: キャッシュ済みHTML/JS/CSSを返す
-  UI->>Ctrl: useEffect / onMount()
-  Ctrl->>Repo: getCurrentLocation()
-  alt 位置情報の権限なし
-    Repo-->>Ctrl: GeolocationPermissionDenied
-    Ctrl-->>UI: showPermissionDialog()
-    UI-->>User: ブラウザの位置情報許可を求める
-    User->>UI: 許可する
-    UI->>Ctrl: retryWithPermission()
+  User->>UI: 「現在地を取得する」をクリック
+  UI->>UI: ボタン無効化・ステータス表示（取得中…）
+  UI->>Geo: getCurrentLocation()
+  Geo->>Browser: navigator.geolocation.getCurrentPosition()
+  alt 取得成功
+    Browser-->>Geo: position（緯度・経度・精度）
+    Geo-->>UI: {latitude, longitude, accuracy}
+    UI-->>User: 緯度・経度・精度を表示
+  else 権限拒否／タイムアウト／取得不可
+    Browser-->>Geo: error
+    Geo-->>UI: Errorメッセージ
+    UI-->>User: エラーメッセージを表示
   end
-  Repo-->>Ctrl: Location
-  alt キャッシュが有効（5分以内）
-    Ctrl->>Repo: getCached()
-    Repo-->>Ctrl: WeatherData
-  else オンライン・キャッシュ期限切れ
-    Ctrl->>Repo: fetchWeather(Location)
-    Repo->>SW: fetch(/forecast?lat&lng)
-    alt オンライン
-      SW->>API: GET /forecast?lat&lng&hourly
-      API-->>SW: JSON（3時間ごと予報）
-      SW->>SW: Cache APIに保存（TTL:5分）
-      SW-->>Repo: WeatherData
-    else オフライン
-      SW-->>Repo: キャッシュ済みWeatherData（stale表示付き）
+  UI->>UI: ボタン再有効化
+```
+
+### UC6：現在地の天気自動取得（Open-Meteo連携）
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User as ユーザー
+  participant UI as autoFillUI
+  participant Geo as geolocation.js
+  participant Browser as ブラウザ Geolocation API
+  participant Weather as weatherApi.js
+  participant API as Open-Meteo API
+  participant Form as フォーム入力欄
+
+  User->>UI: 「現在地の天気を自動取得する」をクリック
+  UI->>UI: ボタン無効化・ステータス表示（現在地を取得しています…）
+  UI->>Geo: getCurrentLocation()
+  Geo->>Browser: navigator.geolocation.getCurrentPosition()
+  alt 位置情報取得に失敗
+    Browser-->>Geo: error
+    Geo-->>UI: Errorメッセージ
+    UI-->>User: エラーメッセージを表示
+  else 位置情報取得に成功
+    Browser-->>Geo: position（緯度・経度）
+    Geo-->>UI: {latitude, longitude}
+    UI->>UI: ステータス表示（天気情報を取得しています…）
+    UI->>Weather: fetchCurrentWeather({latitude, longitude})
+    Weather->>API: GET /v1/forecast?latitude&longitude&current=...
+    alt 通信エラー／サーバーエラー／形式不正
+      API-->>Weather: エラー or 不正なレスポンス
+      Weather-->>UI: Errorメッセージ
+      UI-->>User: エラーメッセージを表示
+    else 取得成功
+      API-->>Weather: {temperature_2m, relative_humidity_2m, weather_code}
+      Weather->>Weather: mapWeatherCode(weather_code)
+      Weather-->>UI: {temperature, humidity, condition}
+      UI->>Form: 気温・天気・湿度の各入力欄に値をセット
+      UI-->>User: 「現在地の天気を反映しました」を表示
     end
-    Repo-->>Ctrl: WeatherData
   end
-  Ctrl->>Eng: generate(WeatherData)
-  loop 朝・昼・夜の各時間帯
-    Eng->>Eng: selectRule(temp, humidity, condition)
+  UI->>UI: ボタン再有効化
+```
+
+### UC7：朝・昼・夜の服装提案
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User as ユーザー
+  participant UI as timeOfDayUI
+  participant Geo as geolocation.js
+  participant Browser as ブラウザ Geolocation API
+  participant Weather as weatherApi.js
+  participant API as Open-Meteo API
+  participant Rule as outfitRules.js
+  participant Repo as favorites.js
+
+  User->>UI: 「朝・昼・夜の服装を提案する」をクリック
+  UI->>UI: ボタン無効化・ステータス表示（現在地を取得しています…）
+  UI->>Geo: getCurrentLocation()
+  Geo->>Browser: navigator.geolocation.getCurrentPosition()
+  alt 位置情報取得に失敗
+    Browser-->>Geo: error
+    Geo-->>UI: Errorメッセージ
+    UI-->>User: エラーメッセージを表示
+  else 位置情報取得に成功
+    Browser-->>Geo: position（緯度・経度）
+    Geo-->>UI: {latitude, longitude}
+    UI->>UI: ステータス表示（朝・昼・夜の天気を取得しています…）
+    UI->>Weather: fetchTimeOfDayForecast({latitude, longitude})
+    Weather->>API: GET /v1/forecast?...&hourly=temperature_2m,relative_humidity_2m,weather_code
+    alt 通信エラー／サーバーエラー／形式不正
+      API-->>Weather: エラー or 不正なレスポンス
+      Weather-->>UI: Errorメッセージ
+      UI-->>User: エラーメッセージを表示
+    else 取得成功
+      API-->>Weather: 1時間ごとの気温・湿度・weather_code配列
+      Weather->>Weather: 朝8時・昼14時・夜20時に最も近い時刻を抽出
+      Weather-->>UI: {morning, afternoon, evening}
+      loop 朝・昼・夜それぞれ
+        UI->>Rule: generateRecommendation(weather)
+        Rule-->>UI: {baseOutfit, tips, summary}
+      end
+      UI-->>User: 朝・昼・夜3件の服装提案カードを表示
+    end
   end
-  Eng-->>Ctrl: OutfitRecommendation
-  Ctrl-->>UI: setState(WeatherData, OutfitRecommendation)
-  UI-->>User: 天気＋時間帯別服装を表示
+  UI->>UI: ボタン再有効化
+  User->>UI: いずれかのカードで「お気に入りに追加」をクリック
+  UI->>Repo: save({...weather, ...recommendation, periodLabel})
+  Repo-->>UI: 保存完了（favorites:updatedはfavoritesUIが購読して一覧を自動更新）
+  UI-->>User: ボタンを「追加しました」に変更
+```
+
+### UC2・UC3：気温・天気・湿度の入力→服装レコメンド表示
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User as ユーザー
+  participant UI as outfitFormUI
+  participant Val as validation.js
+  participant Rule as outfitRules.js
+  participant Evt as document（CustomEvent）
+
+  User->>UI: 気温・天気・湿度を入力し送信
+  UI->>UI: clearFieldErrors()
+  UI->>Val: validateInputs(raw)
+  alt 入力不正
+    Val-->>UI: {valid:false, errors}
+    UI-->>User: フィールドごとのエラーを表示
+  else 入力OK
+    Val-->>UI: {valid:true, values}
+    UI->>Rule: generateRecommendation(values)
+    Rule->>Rule: selectTemperatureRule(temperature)
+    Rule-->>UI: {baseOutfit, tips, summary}
+    UI-->>User: 服装提案を表示
+    UI->>Evt: dispatchEvent(outfit:generated, {values, recommendation})
+  end
 ```
 
 ### UC4：お気に入り登録
@@ -396,290 +484,185 @@ sequenceDiagram
 sequenceDiagram
   autonumber
   actor User as ユーザー
-  participant UI as お気に入り登録画面
-  participant Ctrl as FavoriteController
-  participant Repo as FavoriteRepository
+  participant FormUI as outfitFormUI
+  participant FavUI as favoritesUI
+  participant Repo as favorites.js
   participant DB as localStorage
 
-  User->>UI: 「お気に入りに追加」をクリック
-  UI-->>User: テキスト入力モーダルを表示
-  User->>UI: 服装メモを入力して保存
-  UI->>Ctrl: onSave(memo)
-  alt メモが空
-    Ctrl-->>UI: showValidationError()
-    UI-->>User: 「メモを入力してください」
-  else 入力あり
-    Ctrl->>Repo: save(FavoriteOutfit)
-    Repo->>DB: localStorage.setItem(id, JSON)
+  FormUI-->>FavUI: outfit:generated イベント（currentEntryを保持）
+  User->>FavUI: 「お気に入りに追加」をクリック
+  alt currentEntryが存在する
+    FavUI->>Repo: save(currentEntry)
+    Repo->>DB: localStorage.setItem("weather-outfit:favorites", JSON)
     DB-->>Repo: 保存完了
-    Repo-->>Ctrl: success
-    Ctrl-->>UI: showSuccessToast()
-    UI-->>User: 「保存しました」トースト表示
+    Repo->>Repo: dispatchEvent(favorites:updated)
+    Repo-->>FavUI: favorites:updated イベント
+    FavUI->>FavUI: renderFavorites()（一覧を再描画）
+    Repo-->>FavUI: 保存レコード（id・savedAt付き、戻り値）
+    FavUI-->>User: 「お気に入りに保存しました」を表示
+  else currentEntryが存在しない
+    FavUI-->>FavUI: 何もしない（クリック無視）
   end
 ```
 
-### UC5：お気に入り管理
+### UC5：お気に入り管理（一覧・削除）
 
 ```mermaid
 sequenceDiagram
   autonumber
   actor User as ユーザー
-  participant UI as お気に入り一覧画面
-  participant Ctrl as FavoriteController
-  participant Repo as FavoriteRepository
+  participant UI as favoritesUI
+  participant Repo as favorites.js
   participant DB as localStorage
 
-  User->>UI: お気に入りページを開く
-  UI->>Ctrl: useEffect / onMount()
-  Ctrl->>Repo: findAll()
-  Repo->>DB: localStorage.getItem(favorites)
+  User->>UI: ページを開く
+  UI->>Repo: findAll()
+  Repo->>DB: localStorage.getItem("weather-outfit:favorites")
   DB-->>Repo: 保存済みデータ
   alt データなし
-    Repo-->>Ctrl: 空配列
-    Ctrl-->>UI: showEmptyState()
+    Repo-->>UI: 空配列
     UI-->>User: 「まだ登録がありません」
   else データあり
-    Repo-->>Ctrl: FavoriteOutfit[]
-    Ctrl-->>UI: setState(list)
+    Repo-->>UI: レコード配列（新しい順）
     UI-->>User: お気に入り一覧を表示
   end
   User->>UI: 削除ボタンをクリック
-  UI->>Ctrl: onDelete(id)
-  Ctrl->>Repo: delete(id)
-  Repo->>DB: localStorage.removeItem(id)
+  UI->>Repo: remove(id)
+  Repo->>DB: フィルタ後の配列をsetItem
   DB-->>Repo: 削除完了
-  Repo-->>Ctrl: success
-  Ctrl->>Repo: findAll()
-  Repo->>DB: localStorage.getItem(favorites)
-  DB-->>Repo: 更新済みデータ
-  Repo-->>Ctrl: FavoriteOutfit[]
-  Ctrl-->>UI: setState(updatedList)
-  UI-->>User: 一覧を更新して表示
+  Repo->>Repo: dispatchEvent(favorites:updated)
+  Repo-->>UI: favorites:updated イベント
+  UI->>UI: renderFavorites()（再描画）
+```
+
+### UC8：お気に入りの再利用
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User as ユーザー
+  participant UI as favoritesUI
+  participant Repo as favorites.js
+  participant Form as フォーム入力欄
+
+  User->>UI: お気に入り項目の「この内容で再入力」をクリック
+  UI->>Repo: findAll()
+  Repo-->>UI: レコード配列
+  UI->>UI: クリックされたidのレコードを特定
+  UI->>Form: 気温・天気・湿度の各入力欄に値をセット
+  UI-->>User: 「フォームに反映しました」を表示し、入力フォームまでスクロール
+  User->>Form: 内容を確認し「服装を確認する」をクリック（値の編集も可能）
 ```
 
 ---
 
 ## 8. 状態遷移図
 
-### アプリ全体
+### 位置情報取得（locationUI）
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Launching : ページ読み込み
+  [*] --> Idle : 画面表示
 
-  state Launching {
-    [*] --> CheckingPermission : 初期化開始
-    CheckingPermission --> PermissionGranted : 位置情報が許可済み
-    CheckingPermission --> PermissionDenied : 権限なし
-    PermissionDenied --> PermissionGranted : ユーザーがブラウザ許可
-    PermissionDenied --> [*] : ユーザーが拒否
-    PermissionGranted --> [*] : 起動処理完了
-  }
+  Idle --> Fetching : 「現在地を取得する」クリック
+  Fetching --> Success : position取得成功
+  Fetching --> Error : 権限拒否／タイムアウト／取得不可
 
-  Launching --> LoadingWeather : 権限取得完了
-  Launching --> PermissionError : 権限を拒否
+  Success --> Fetching : 再度クリック
+  Error --> Fetching : 再度クリック
 
-  state LoadingWeather {
-    [*] --> FetchingLocation : Geolocation取得開始
-    FetchingLocation --> FetchingAPI : 位置情報取得成功
-    FetchingLocation --> LocationError : Geolocation取得失敗
-    FetchingAPI --> WeatherLoaded : APIレスポンス受信
-    FetchingAPI --> NetworkError : 通信エラー
-    WeatherLoaded --> [*]
-    LocationError --> [*]
-    NetworkError --> [*]
-  }
-
-  LoadingWeather --> HomeReady : 天気・服装提案の表示完了
-  LoadingWeather --> HomeReadyCached : オフライン・キャッシュあり
-  LoadingWeather --> LocationError : Geolocation取得失敗
-
-  HomeReady --> LoadingWeather : 更新ボタンクリック / 5分経過
-  HomeReadyCached --> LoadingWeather : オンライン復帰 → 再取得
-  HomeReady --> FavoriteFlow : お気に入りタブをクリック
-  HomeReadyCached --> FavoriteFlow : お気に入りタブをクリック
-
-  state FavoriteFlow {
-    [*] --> FavoriteList : 一覧読み込み
-    FavoriteList --> AddingFavorite : 追加ボタンクリック
-    AddingFavorite --> Validating : 保存ボタンクリック
-    Validating --> FavoriteList : 保存成功
-    Validating --> AddingFavorite : バリデーションエラー
-    FavoriteList --> DeletingFavorite : 削除ボタンクリック
-    DeletingFavorite --> FavoriteList : 削除完了
-    FavoriteList --> [*]
-  }
-
-  FavoriteFlow --> HomeReady : ホームタブをクリック
-  PermissionError --> [*] : ページを閉じる
-  HomeReady --> [*] : ページを閉じる
-  HomeReadyCached --> [*] : ページを閉じる
+  Success --> [*]
+  Error --> [*]
 ```
 
-### 天気データ（WeatherData）
+### 天気自動取得（autoFillUI）
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Absent : ページ初回読み込み
+  [*] --> Idle : 画面表示
 
-  Absent --> Fetching : fetchWeather()呼び出し
+  Idle --> FetchingLocation : 「現在地の天気を自動取得する」クリック
+  FetchingLocation --> FetchingWeather : 位置情報取得成功
+  FetchingLocation --> Error : 位置情報取得失敗
 
-  state Fetching {
-    [*] --> ResolvingLocation : Geolocation取得中
-    ResolvingLocation --> CallingAPI : 位置情報取得成功
-    ResolvingLocation --> LocationFailed : Geolocation取得失敗
-    CallingAPI --> Parsing : HTTPレスポンス200
-    CallingAPI --> NetworkFailed : 通信エラー / タイムアウト
-    Parsing --> [*] : パース完了
-    LocationFailed --> [*]
-    NetworkFailed --> [*]
-  }
+  FetchingWeather --> Filled : Open-Meteo APIから取得成功・フォームへ反映
+  FetchingWeather --> Error : 通信エラー／サーバーエラー／形式不正
 
-  Fetching --> Fresh : データ取得・キャッシュ保存成功（Service Worker）
-  Fetching --> Cached : オフライン・Service Workerキャッシュあり
-  Fetching --> Error : オフライン・キャッシュなし
+  Filled --> FetchingLocation : 再度クリック
+  Error --> FetchingLocation : 再度クリック
 
-  Fresh --> Fresh : キャッシュ参照（5分以内）
-  Fresh --> Stale : 5分経過
-  Fresh --> Fetching : 手動更新
-
-  Cached --> Fetching : オンライン復帰
-  Cached --> Stale : 5分経過
-
-  Stale --> Fetching : fetchWeather()呼び出し
-  Stale --> Stale : キャッシュ参照（期限切れ表示付き）
-
-  Error --> Fetching : 再試行
-  Error --> Absent : キャッシュクリア
-
-  note right of Fresh : isStale() = false / SW Cache有効
-  note right of Cached : isCached() = true / オフライン表示
-  note right of Stale : isStale() = true / 再取得が必要
+  Filled --> [*]
+  Error --> [*]
 ```
 
-### お気に入り（FavoriteOutfit）
+### 朝・昼・夜の服装提案（timeOfDayUI）
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Idle : お気に入りページを開く
+  [*] --> Idle : 画面表示
 
-  Idle --> Loading : findAll()呼び出し
+  Idle --> FetchingLocation : 「朝・昼・夜の服装を提案する」クリック
+  FetchingLocation --> FetchingWeather : 位置情報取得成功
+  FetchingLocation --> Error : 位置情報取得失敗
 
-  state Loading {
-    [*] --> ReadingStorage : localStorage読み込み中
-    ReadingStorage --> [*] : 読み込み完了
-  }
+  FetchingWeather --> Shown : Open-Meteo時間帯別予報の取得成功・3件のカードを表示
+  FetchingWeather --> Error : 通信エラー／サーバーエラー／形式不正
+
+  Shown --> FetchingLocation : 再度クリック
+  Error --> FetchingLocation : 再度クリック
+
+  Shown --> [*]
+  Error --> [*]
+
+  note right of Shown : 各カードの「お気に入りに追加」はShown内で完結し、favorites.jsのfavorites-updatedイベントで一覧側へ伝播する
+```
+
+### 服装提案フォーム（outfitFormUI）
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle : 画面表示
+
+  Idle --> Validating : フォーム送信
+
+  Validating --> Invalid : 入力エラーあり
+  Invalid --> Idle : 再入力
+
+  Validating --> RecommendationShown : 入力OK・提案生成
+  RecommendationShown --> Validating : 再送信（値を変更）
+
+  note right of RecommendationShown : outfit-generatedイベントを発火してfavoritesUIへ提案内容を伝える
+```
+
+### お気に入り（favoritesUI）
+
+```mermaid
+stateDiagram-v2
+  [*] --> Loading : 画面表示（findAll呼び出し）
 
   Loading --> Empty : データ件数 = 0
   Loading --> Listed : データ件数 ≥ 1
 
-  Empty --> Adding : 追加ボタンクリック
-  Listed --> Adding : 追加ボタンクリック
-  Listed --> Deleting : 削除ボタンクリック
+  Empty --> Listed : 保存成功（提案がある状態で追加クリック）
+  Listed --> Listed : 保存成功（追加クリック）
+  Listed --> Loading : 削除完了 → 再描画
+  Listed --> Empty : 最後の1件を削除
 
-  state Adding {
-    [*] --> ModalOpen : モーダル表示
-    ModalOpen --> Validating : 保存ボタンクリック
-    Validating --> Saving : 入力あり（バリデーション通過）
-    Validating --> ModalOpen : 入力なし（バリデーションエラー）
-    Saving --> [*] : localStorage.setItem()完了
-    ModalOpen --> [*] : キャンセル
-  }
-
-  state Deleting {
-    [*] --> ConfirmingDelete : 削除確認ダイアログ表示
-    ConfirmingDelete --> Removing : 削除を確定
-    ConfirmingDelete --> [*] : キャンセル
-    Removing --> [*] : localStorage.removeItem()完了
-  }
-
-  Adding --> Loading : 保存完了 → 再読み込み
-  Adding --> Listed : キャンセル
-  Deleting --> Loading : 削除完了 → 再読み込み
-  Deleting --> Listed : キャンセル
-
-  Empty --> [*] : ページを離れる
-  Listed --> [*] : ページを離れる
+  Empty --> [*]
+  Listed --> [*]
 ```
 
 ---
 
 ## 9. 使用プラットフォーム
 
-本ドキュメントの要件定義作業はすべて以下のツールのみで完結した。
-
 | ツール | 用途 |
 |--------|------|
-| [Claude（claude.ai）](https://claude.ai) | ヒアリング・要件整理・全図の生成 |
-| [Mermaid.js](https://mermaid.js.org/) | ユースケース図・クラス図・シーケンス図・状態遷移図のレンダリング |
+| [Claude（claude.ai）](https://claude.ai) | 要件のヒアリング・初期ドキュメント作成 |
+| [Claude（Cowork）](https://claude.ai) | リポジトリのクローン・実装コードの精査・天気自動取得機能や時間帯別提案・お気に入り再利用機能の実装・本ドキュメントの実装追随更新 |
+| [Open-Meteo](https://open-meteo.com/) | 天気予報データ（現在の天気・1時間ごとの時間帯別予報）の取得（APIキー不要・無料） |
+| [Mermaid.js](https://mermaid.js.org/) | ユースケース図・モジュール構成図・シーケンス図・状態遷移図のレンダリング |
 
-外部ツールへのアクセスやファイルエクスポートは一切行っておらず、すべてブラウザ内で完結している。
-
----
-
-## 10. 実装状況（現在のプロトタイプ）
-
-上記1〜9章はReact PWAとしての完成形を想定した要件定義であり、PBLでは機能をステップごとに実装・確認しながら進めている。本章は実装の進み具合に合わせて随時更新する。
-
-### 現在の技術スタック
-
-要件定義のReact + Viteではなく、素のHTML/CSS/JavaScript（ES Modules、ビルド不要）で実装している。今日動かしたい機能をすぐ確認できることを優先したため。ロジックをUI（DOM操作）から分離した構成にしているので、後からReactへ移行する場合も土台として流用できる。
-
-### 公開URL
-
-- アプリ本体: https://tsukushi-81.github.io/apri2/weather-outfit/
-- ルート（自動転送）: https://tsukushi-81.github.io/apri2/
-
-GitHub Pages（`main`ブランチ / `root`）で公開。
-
-### ファイル構成
-
-```
-weather-outfit/
-├── index.html
-├── style.css
-└── js/
-    ├── app.js              エントリーポイント（各UIの初期化のみ）
-    ├── events.js           UIモジュール間の共通イベント名
-    ├── outfitRules.js      服装レコメンドロジック
-    ├── validation.js       入力検証ロジック
-    ├── geolocation.js      位置情報取得ロジック
-    ├── favorites.js        お気に入りの保存・取得・削除（localStorage）
-    └── ui/
-        ├── locationUI.js      位置情報の観測（UI制御）
-        ├── outfitFormUI.js    入力フォーム→服装提案表示（UI制御）
-        └── favoritesUI.js     お気に入り登録・一覧・削除（UI制御）
-```
-
-`ui/`配下は1機能=1ファイルで、お互いのDOM要素を直接触らない。服装提案が生成されたことは`outfitFormUI.js`が`outfit:generated`イベント（`events.js`で定義）で通知し、`favoritesUI.js`がそれを受けて保存対象を保持する。
-
-### 実装済み機能
-
-| 機能 | 内容 | 備考 |
-|------|------|------|
-| 位置情報の観測 | Geolocation APIで緯度・経度・精度を取得し画面表示 | 天気の自動取得は未実装 |
-| 気温・天気・湿度の入力 | 数値/選択式フォーム＋範囲チェック・エラー表示 | 気温-30〜45℃、湿度0〜100% |
-| 服装レコメンド表示 | 気温帯ルール＋天気・湿度の追加アドバイスをルールベースで生成 | `outfitRules.js`に分離 |
-| お気に入り登録 | その時の気温・天気・湿度・提案内容をまとめて自動でlocalStorageに保存 | 自由記述メモは無し（要件定義UC4から変更） |
-| お気に入り一覧・削除 | 保存済み項目を新しい順に一覧表示、個別に削除可能 | |
-
-### 未実装（今後の候補）
-
-- Open-Meteo API連携による天気の自動取得（現在は手動入力のみ）
-- 時間帯別（朝・昼・夜）の服装提案
-- Service Worker導入によるオフラインキャッシュ・PWA化
-- manifest.json・ホーム画面インストール対応
-- Reactへの移行
-
-### ローカルでの起動方法
-
-```
-cd weather-outfit
-python -m http.server 8000
-```
-
-ブラウザで `http://localhost:8000` を開く（ES Modulesを使用しているため `file://` の直接開きは不可）。
+本ドキュメントは当初React PWAとしての要件定義書として作成されたが、実際の実装はフレームワーク・PWAを伴わないVanilla JavaScriptのプロトタイプとなったため、実装内容に合わせて全面的に更新した。その後、Open-Meteo APIと連携した天気自動取得機能（UC6・`weatherApi.js`・`autoFillUI.js`）を追加し、続けて朝・昼・夜の時間帯別提案（UC7・`timeOfDayUI.js`）とお気に入りの再利用（UC8）を追加し、関連するドキュメントと図をその都度更新した。
 
 ---
-
-*このドキュメントはClaude（claude.ai）を使用して生成された要件定義ドキュメントです。*

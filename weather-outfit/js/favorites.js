@@ -2,6 +2,8 @@
 // localStorage をラップし、UI側（app.js）はこのファイルのAPIだけを使う。
 // 要件定義書「セキュリティ」要求: データはlocalStorageにのみ保存し、外部送信しない。
 
+import { EVENT_FAVORITES_UPDATED } from "./events.js";
+
 const STORAGE_KEY = "weather-outfit:favorites";
 
 function generateId() {
@@ -23,11 +25,13 @@ function readAll() {
 
 function writeAll(items) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  // 保存元のUIモジュールを問わず、一覧表示側（favoritesUI.js）が再描画できるように通知する
+  document.dispatchEvent(new CustomEvent(EVENT_FAVORITES_UPDATED));
 }
 
 /**
  * その時の状況（気温・天気・湿度）と服装提案をまとめて1件保存する
- * @param {{temperature:number, condition:string, humidity:number, summary:string, baseOutfit:string, tips:string[]}} entry
+ * @param {{temperature:number, condition:string, humidity:number, summary:string, baseOutfit:string, tips:string[], periodLabel?:string}} entry
  * @returns {object} 保存したレコード（id・savedAt付き）
  */
 export function save(entry) {
